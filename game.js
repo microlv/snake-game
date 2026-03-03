@@ -3,10 +3,30 @@ const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
 const bestEl = document.getElementById('best');
 const restartBtn = document.getElementById('restart');
+const speedInput = document.getElementById('speed');
+const speedValueEl = document.getElementById('speedValue');
+const gridSelect = document.getElementById('grid');
+const difficultySelect = document.getElementById('difficulty');
 
-const gridSize = 20;
-const tile = canvas.width / gridSize;
-const speedMs = 110;
+const SETTINGS_KEY = 'snake-settings';
+const BEST_KEY = 'snake-best';
+
+const DIFFICULTY_PRESETS = {
+  easy: { speedMs: 160, gridSize: 16 },
+  normal: { speedMs: 110, gridSize: 20 },
+  hard: { speedMs: 80, gridSize: 24 },
+};
+
+const defaultSettings = {
+  ...DIFFICULTY_PRESETS.normal,
+  difficulty: 'normal',
+};
+
+let settings = loadSettings();
+
+const fixedCanvasSize = canvas.width;
+let gridSize = settings.gridSize;
+let tile = fixedCanvasSize / gridSize;
 
 let snake;
 let dir;
@@ -15,19 +35,72 @@ let food;
 let score;
 let timer;
 let paused = false;
-let best = Number(localStorage.getItem('snake-best') || 0);
+let best = Number(localStorage.getItem(BEST_KEY) || 0);
 bestEl.textContent = best;
 
+syncSettingsUI();
+
+function loadSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+    const speedMs = Number(saved.speedMs) || defaultSettings.speedMs;
+    const gridSize = Number(saved.gridSize) || defaultSettings.gridSize;
+
+    const matchedDifficulty = getDifficultyByValues(speedMs, gridSize);
+
+    return {
+      speedMs,
+      gridSize,
+      difficulty: saved.difficulty || matchedDifficulty || 'custom',
+    };
+  } catch {
+    return { ...defaultSettings };
+  }
+}
+
+function saveSettings() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function syncSettingsUI() {
+  speedInput.value = String(settings.speedMs);
+  speedValueEl.textContent = `${settings.speedMs}ms`;
+  gridSelect.value = String(settings.gridSize);
+  difficultySelect.value = settings.difficulty;
+}
+
+function getDifficultyByValues(speedMs, gridSize) {
+  for (const [difficulty, preset] of Object.entries(DIFFICULTY_PRESETS)) {
+    if (preset.speedMs === speedMs && preset.gridSize === gridSize) {
+      return difficulty;
+    }
+  }
+  return null;
+}
+
+function updateDifficultyByCurrentValues() {
+  settings.difficulty = getDifficultyByValues(settings.speedMs, settings.gridSize) || 'custom';
+  difficultySelect.value = settings.difficulty;
+}
+
+function startTimer() {
+  clearInterval(timer);
+  timer = setInterval(tick, settings.speedMs);
+}
+
 function reset() {
-  snake = [{ x: 10, y: 10 }];
+  gridSize = settings.gridSize;
+  tile = fixedCanvasSize / gridSize;
+
+  snake = [{ x: Math.floor(gridSize / 2), y: Math.floor(gridSize / 2) }];
   dir = { x: 1, y: 0 };
   nextDir = { x: 1, y: 0 };
   score = 0;
   paused = false;
   scoreEl.textContent = score;
+
   placeFood();
-  clearInterval(timer);
-  timer = setInterval(tick, speedMs);
+  startTimer();
   draw();
 }
 
@@ -42,6 +115,7 @@ function placeFood() {
 
 function tick() {
   if (paused) return;
+
   dir = nextDir;
   const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
 
@@ -60,7 +134,7 @@ function tick() {
     scoreEl.textContent = score;
     if (score > best) {
       best = score;
-      localStorage.setItem('snake-best', String(best));
+      localStorage.setItem(BEST_KEY, String(best));
       bestEl.textContent = best;
     }
     placeFood();
@@ -118,6 +192,39 @@ function setDirection(x, y) {
   if (x === -dir.x && y === -dir.y) return;
   nextDir = { x, y };
 }
+
+speedInput.addEventListener('input', (e) => {
+  const speedMs = Number(e.target.value);
+  settings.speedMs = speedMs;
+  speedValueEl.textContent = `${speedMs}ms`;
+  updateDifficultyByCurrentValues();
+  saveSettings();
+  startTimer();
+});
+
+gridSelect.addEventListener('change', (e) => {
+  settings.gridSize = Number(e.target.value);
+  updateDifficultyByCurrentValues();
+  saveSettings();
+  reset();
+});
+
+difficultySelect.addEventListener('change', (e) => {
+  const difficulty = e.target.value;
+  settings.difficulty = difficulty;
+
+  if (difficulty !== 'custom') {
+    const preset = DIFFICULTY_PRESETS[difficulty];
+    settings.speedMs = preset.speedMs;
+    settings.gridSize = preset.gridSize;
+    syncSettingsUI();
+    saveSettings();
+    reset();
+    return;
+  }
+
+  saveSettings();
+});
 
 document.addEventListener('keydown', (e) => {
   const key = e.key.toLowerCase();

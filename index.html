@@ -9,13 +9,35 @@
 <body>
   <main class="app">
     <h1>🐍 贪吃蛇</h1>
+
     <div class="panel">
       <span>分数：<strong id="score">0</strong></span>
       <span>最高分：<strong id="best">0</strong></span>
       <button id="restart">重新开始</button>
     </div>
+
+    <section class="settings" aria-label="游戏设置">
+      <label for="speed">速度：<strong id="speedValue">110ms</strong></label>
+      <input id="speed" type="range" min="60" max="220" step="10" value="110" />
+
+      <label for="difficulty">难度：</label>
+      <select id="difficulty">
+        <option value="easy">简单</option>
+        <option value="normal" selected>普通</option>
+        <option value="hard">困难</option>
+        <option value="custom">自定义</option>
+      </select>
+
+      <label for="grid">棋盘大小：</label>
+      <select id="grid">
+        <option value="16">16 × 16</option>
+        <option value="20" selected>20 × 20</option>
+        <option value="24">24 × 24</option>
+      </select>
+    </section>
+
     <canvas id="game" width="480" height="480" aria-label="snake game"></canvas>
-    <p class="tip">方向键 / WASD 控制，空格暂停</p>
+    <p class="tip">方向键 / WASD 控制，空格暂停。难度会一键切换推荐参数；手动改参数会变成“自定义”。</p>
   </main>
   <script src="game.js"></script>
 </body>
